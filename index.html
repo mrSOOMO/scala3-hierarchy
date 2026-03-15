@@ -33,6 +33,10 @@
   --c-nothing:   #ef4444;
   --c-scala3:    #fbbf24;
   --c-enum3:     #34d399;
+  --c-array:     #f59e0b;
+  --c-iarray:    #86efac;
+  --c-mut:       #4ade80;
+  --c-imm:       #93c5fd;
 
   --r: 9px;
 }
@@ -203,6 +207,7 @@ header .sub {
   box-shadow: 0 12px 32px rgba(0,0,0,.6);
   z-index: 20;
 }
+.node { cursor: pointer; }
 .node.wide  { max-width: 260px; }
 .node.xwide { max-width: 320px; min-width: 260px; }
 .node.center { text-align: center; min-width: 180px; }
@@ -274,6 +279,14 @@ header .sub {
 .n-nothing .nname { color: var(--c-nothing); font-size: 1.1rem; }
 .n-scala3  { border-color: rgba(251,191,36,.45); background: rgba(251,191,36,.04); }
 .n-scala3  .nname { color: var(--c-scala3); }
+.n-array   { border-color: rgba(245,158,11,.45); }
+.n-array   .nname { color: var(--c-array); }
+.n-iarray  { border-color: rgba(134,239,172,.45); background: rgba(134,239,172,.03); }
+.n-iarray  .nname { color: var(--c-iarray); }
+.n-mut     { border-color: rgba(74,222,128,.35); border-style: dashed; }
+.n-mut     .nname { color: var(--c-mut); }
+.n-imm     { border-color: rgba(147,197,253,.35); }
+.n-imm     .nname { color: var(--c-imm); }
 
 /* tag colors */
 .t-top    { background: rgba(255,107,53,.12);  color: #ff6b35; }
@@ -283,9 +296,11 @@ header .sub {
 .t-jvm    { background: rgba(56,189,248,.1);   color: #38bdf8; }
 .t-bot    { background: rgba(239,68,68,.12);   color: #ef4444; }
 .t-ro     { background: rgba(56,189,248,.08);  color: #7dd3fc; }
-.t-mut    { background: rgba(52,211,153,.1);   color: #6ee7b7; }
+.t-mut    { background: rgba(74,222,128,.12);  color: #4ade80; }
+.t-imm    { background: rgba(147,197,253,.1);  color: #93c5fd; }
 .t-bad    { background: rgba(100,116,139,.1);  color: #94a3b8; }
 .t-sealed { background: rgba(240,171,252,.1);  color: #e879f9; }
+.t-arr    { background: rgba(245,158,11,.12);  color: #f59e0b; }
 
 /* ─── DIVIDER / SECTION ───────────────────────────── */
 .divider {
@@ -394,7 +409,10 @@ footer {
   <div class="legend-item"><div class="ldot" style="background:var(--c-match)"></div>Matchable (Scala 3)</div>
   <div class="legend-item"><div class="ldot" style="background:var(--c-anyval)"></div>AnyVal — value types</div>
   <div class="legend-item"><div class="ldot" style="background:var(--c-anyref)"></div>AnyRef — reference types</div>
-  <div class="legend-item"><div class="ldash" style="border-color:var(--c-coll)"></div>Коллекции (trait)</div>
+  <div class="legend-item"><div class="ldot" style="background:var(--c-array)"></div>Array — мутабельный JVM</div>
+  <div class="legend-item"><div class="ldot" style="background:var(--c-iarray)"></div>IArray — immutable (Scala 3)</div>
+  <div class="legend-item"><div class="ldot" style="background:var(--c-imm)"></div>immutable коллекции</div>
+  <div class="legend-item"><div class="ldash" style="border-color:var(--c-mut)"></div>mutable коллекции</div>
   <div class="legend-item"><div class="ldash" style="border-color:var(--c-opt)"></div>Option / Either</div>
   <div class="legend-item"><div class="ldot" style="background:var(--c-throw)"></div>Throwable</div>
   <div class="legend-item"><div class="ldot" style="background:var(--c-null)"></div>Null</div>
@@ -637,43 +655,76 @@ footer {
       </div>
       <div class="ntags"><span class="tag t-bad">avoid</span><span class="tag t-s3">explicit-nulls</span></div>
     </div>
+
+    <div class="node n-array" id="n-array">
+      <div class="nkind">final class · mutable</div>
+      <div class="nname">Array[T]</div>
+      <div class="ndesc">
+        Обёртка над JVM-массивом <code>T[]</code>.<br>
+        Мутабельный, фиксированного размера. O(1) доступ.<br>
+        <strong>Инвариантен</strong> — <code>Array[Int]</code> ≠ <code>Array[Any]</code>.<br>
+        Через <code>ArrayOps</code> получает все методы <code>Seq</code>.
+      </div>
+      <div class="ntags"><span class="tag t-mut">mutable</span><span class="tag t-jvm">T[]</span><span class="tag t-arr">invariant</span></div>
+    </div>
+
+    <div class="node n-iarray" id="n-iarray">
+      <div class="nkind">opaque type · Scala 3</div>
+      <div class="nname">IArray[+T]</div>
+      <div class="ndesc">
+        <code>opaque type IArray[+T] = Array[T]</code><br>
+        Иммутабельный массив — нулевой overhead!<br>
+        Компилятор <strong>запрещает</strong> мутацию снаружи.<br>
+        <strong>Ковариантен</strong>: <code>IArray[Int] &lt;: IArray[Any]</code>.<br>
+        Scala 3 эксклюзив, быстрее чем <code>Vector</code>.
+      </div>
+      <div class="ntags"><span class="tag t-s3">Scala 3</span><span class="tag t-imm">immutable</span><span class="tag t-arr">opaque</span></div>
+    </div>
   </div>
 
   <div class="spacer" id="sp3"></div>
-  <div class="divider">подтипы коллекций Iterable</div>
+  <div class="divider">Iterable → immutable.* и mutable.* ветви</div>
 
-  <!-- ░░ ROW 5 — Collections sub-types ░░ -->
-  <div class="row-label">// уровень 4a · ветви коллекций</div>
+  <!-- ░░ ROW 5 — Seq / Set / Map split ░░ -->
+  <div class="row-label">// уровень 4a · immutable vs mutable интерфейсы</div>
   <div class="row">
-    <!-- SEQ branch -->
-    <div class="node n-coll" id="n-seq">
-      <div class="nkind">trait · sealed</div>
-      <div class="nname">Seq[+A]</div>
-      <div class="ndesc">
-        Упорядоченная последовательность с индексом.<br>
-        <code>apply(i)</code>, <code>length</code>, <code>indexOf</code>, <code>slice</code>, <code>sorted</code>
-      </div>
-      <div class="ntags"><span class="tag t-trait">trait</span><span class="tag t-ro">read-only</span></div>
+    <!-- immutable -->
+    <div class="node n-imm" id="n-seq">
+      <div class="nkind">trait · immutable</div>
+      <div class="nname">immutable.Seq[+A]</div>
+      <div class="ndesc">Упорядоченная неизменяемая последовательность.<br><code>apply(i)</code>, <code>length</code>, <code>indexOf</code>, <code>sorted</code></div>
+      <div class="ntags"><span class="tag t-imm">immutable</span><span class="tag t-ro">read-only</span></div>
     </div>
-    <!-- SET branch -->
-    <div class="node n-coll" id="n-set">
-      <div class="nkind">trait</div>
-      <div class="nname">Set[A]</div>
-      <div class="ndesc">
-        Множество — без дублей.<br>
-        <code>contains</code>, <code>union</code>, <code>intersect</code>, <code>diff</code>, <code>subsetOf</code>
-      </div>
-      <div class="ntags"><span class="tag t-trait">trait</span><span class="tag t-ro">immutable</span></div>
+    <div class="node n-imm" id="n-set">
+      <div class="nkind">trait · immutable</div>
+      <div class="nname">immutable.Set[A]</div>
+      <div class="ndesc">Множество без дублей.<br><code>contains</code>, <code>union</code>, <code>intersect</code>, <code>diff</code></div>
+      <div class="ntags"><span class="tag t-imm">immutable</span></div>
     </div>
-    <!-- MAP branch -->
-    <div class="node n-coll" id="n-map">
-      <div class="nkind">trait</div>
-      <div class="nname">Map[K, +V]</div>
-      <div class="ndesc">
-        Пары ключ-значение. Ключи уникальны.<br>
-        <code>get(k)</code>, <code>updated(k,v)</code>, <code>keys</code>, <code>values</code>, <code>filterKeys</code>
-      </div>
-      <div class="ntags"><span class="tag t-trait">trait</span><span class="tag t-ro">immutable</span></div>
+    <div class="node n-imm" id="n-map">
+      <div class="nkind">trait · immutable</div>
+      <div class="nname">immutable.Map[K,+V]</div>
+      <div class="ndesc">Пары ключ-значение.<br><code>get(k)</code>, <code>updated(k,v)</code>, <code>keys</code>, <code>values</code></div>
+      <div class="ntags"><span class="tag t-imm">immutable</span></div>
+    </div>
+    <!-- mutable -->
+    <div class="node n-mut" id="n-mseq">
+      <div class="nkind">trait · mutable</div>
+      <div class="nname">mutable.Seq[A]</div>
+      <div class="ndesc">Упорядоченная мутабельная последовательность.<br><code>update(i, v)</code>, <code>sortInPlace()</code></div>
+      <div class="ntags"><span class="tag t-mut">mutable</span></div>
+    </div>
+    <div class="node n-mut" id="n-mset">
+      <div class="nkind">trait · mutable</div>
+      <div class="nname">mutable.Set[A]</div>
+      <div class="ndesc">Мутабельное множество.<br><code>add(e)</code>, <code>remove(e)</code>, <code>clear()</code></div>
+      <div class="ntags"><span class="tag t-mut">mutable</span></div>
+    </div>
+    <div class="node n-mut" id="n-mmap">
+      <div class="nkind">trait · mutable</div>
+      <div class="nname">mutable.Map[K,V]</div>
+      <div class="ndesc">Мутабельная Map.<br><code>put(k,v)</code>, <code>remove(k)</code>, <code>update(k,v)</code></div>
+      <div class="ntags"><span class="tag t-mut">mutable</span></div>
     </div>
     <!-- Option sub -->
     <div class="node n-opt" id="n-some">
@@ -713,85 +764,162 @@ footer {
   </div>
 
   <div class="spacer" id="sp4"></div>
-  <div class="divider">конкретные реализации коллекций</div>
+  <div class="divider">иммутабельные реализации коллекций</div>
 
-  <!-- ░░ ROW 6 — Concrete collections ░░ -->
-  <div class="row-label">// уровень 5 · конкретные коллекции</div>
+  <!-- ░░ ROW 6a — Immutable concrete ░░ -->
+  <div class="row-label">// уровень 5a · immutable collections</div>
   <div class="row">
     <div class="node n-collsub" id="n-list">
       <div class="nkind">sealed abstract class</div>
       <div class="nname">List[+A]</div>
-      <div class="ndesc">
-        Односвязный список. <code>::</code> (cons) / <code>Nil</code>.<br>
-        O(1) prepend, O(n) random access.<br>
-        Pattern: <code>case head :: tail => …</code>
-      </div>
-      <div class="ntags"><span class="tag t-sealed">sealed</span><span class="tag t-ro">immutable</span></div>
+      <div class="ndesc">Односвязный список. <code>::</code> / <code>Nil</code>.<br>O(1) prepend. Pattern: <code>case h :: t</code></div>
+      <div class="ntags"><span class="tag t-sealed">sealed</span><span class="tag t-imm">immutable</span></div>
     </div>
     <div class="node n-collsub" id="n-vector">
       <div class="nkind">final class</div>
       <div class="nname">Vector[+A]</div>
-      <div class="ndesc">
-        Индексированная последовательность.<br>
-        O(log₃₂ n) для доступа и обновления.<br>
-        Предпочтителен для произвольного доступа.
-      </div>
-      <div class="ntags"><span class="tag t-ro">immutable</span></div>
+      <div class="ndesc">O(log₃₂ n) доступ и обновление.<br>Лучший выбор для произвольного доступа.</div>
+      <div class="ntags"><span class="tag t-imm">immutable</span></div>
     </div>
     <div class="node n-collsub" id="n-lazylist">
-      <div class="nkind">sealed abstract class · Scala 3</div>
+      <div class="nkind">sealed abstract class</div>
       <div class="nname">LazyList[+A]</div>
-      <div class="ndesc">
-        Ленивый список — вычисляется по требованию.<br>
-        Заменяет <code>Stream</code> из Scala 2.<br>
-        <code>LazyList.iterate(0)(_ + 1)</code> — бесконечный
-      </div>
-      <div class="ntags"><span class="tag t-s3">replaces Stream</span></div>
+      <div class="ndesc">Ленивый список. Заменяет <code>Stream</code>.<br><code>LazyList.iterate(0)(_ + 1)</code> — ∞</div>
+      <div class="ntags"><span class="tag t-s3">replaces Stream</span><span class="tag t-imm">lazy</span></div>
     </div>
-    <div class="node n-collsub" id="n-arraybuf">
-      <div class="nkind">final class · mutable</div>
-      <div class="nname">ArrayBuffer[A]</div>
-      <div class="ndesc">
-        Мутабельный массив с изменяемым размером.<br>
-        O(1) амортизированное добавление.<br>
-        <code>scala.collection.mutable</code>
-      </div>
-      <div class="ntags"><span class="tag t-mut">mutable</span></div>
+    <div class="node n-collsub" id="n-arrayseq">
+      <div class="nkind">sealed abstract class</div>
+      <div class="nname">ArraySeq[+T]</div>
+      <div class="ndesc">Иммутабельная обёртка над <code>Array</code>.<br>Ковариантна. O(1) доступ. Без боксинга для примитивов.</div>
+      <div class="ntags"><span class="tag t-imm">immutable</span><span class="tag t-arr">backed by Array</span></div>
+    </div>
+    <div class="node n-collsub" id="n-queue">
+      <div class="nkind">final class</div>
+      <div class="nname">Queue[+A]</div>
+      <div class="ndesc">Функциональная FIFO-очередь.<br>O(1) <code>enqueue</code>/<code>dequeue</code> амортизированно.<br>Два внутренних списка.</div>
+      <div class="ntags"><span class="tag t-imm">immutable</span></div>
+    </div>
+    <div class="node n-collsub" id="n-range">
+      <div class="nkind">final class</div>
+      <div class="nname">Range</div>
+      <div class="ndesc">Целочисленный диапазон без хранения элементов.<br><code>1 to 10</code>, <code>0 until 100 by 2</code><br>O(1) память независимо от размера!</div>
+      <div class="ntags"><span class="tag t-imm">immutable</span><span class="tag t-jvm">Int only</span></div>
+    </div>
+    <div class="node n-collsub" id="n-numrange">
+      <div class="nkind">final class</div>
+      <div class="nname">NumericRange[T]</div>
+      <div class="ndesc">Диапазон для любого числового типа.<br><code>BigDecimal</code>, <code>Long</code>, <code>Float</code>…<br>Требует <code>Integral[T]</code> или <code>Fractional[T]</code>.</div>
+      <div class="ntags"><span class="tag t-imm">immutable</span></div>
     </div>
     <div class="node n-collsub" id="n-hashset">
       <div class="nkind">final class</div>
       <div class="nname">HashSet[A]</div>
-      <div class="ndesc">Set на хэш-таблице. O(1) lookup.<br>Порядок не гарантирован.</div>
-      <div class="ntags"><span class="tag t-ro">immutable</span></div>
+      <div class="ndesc">Set на хэш-таблице (HAMT). O(1) lookup.<br>Порядок не гарантирован.</div>
+      <div class="ntags"><span class="tag t-imm">immutable</span></div>
     </div>
     <div class="node n-collsub" id="n-treeset">
       <div class="nkind">final class</div>
       <div class="nname">TreeSet[A]</div>
-      <div class="ndesc">Отсортированный Set (red-black дерево).<br>O(log n) операции. Требует <code>Ordering[A]</code>.</div>
-      <div class="ntags"><span class="tag t-ro">sorted</span></div>
+      <div class="ndesc">Отсортированный Set (red-black).<br>O(log n). Требует <code>Ordering[A]</code>.</div>
+      <div class="ntags"><span class="tag t-imm">immutable</span><span class="tag t-ro">sorted</span></div>
+    </div>
+    <div class="node n-collsub" id="n-listset">
+      <div class="nkind">final class</div>
+      <div class="nname">ListSet[A]</div>
+      <div class="ndesc">Set на связном списке.<br>Сохраняет порядок вставки. O(n) lookup.<br>Только для маленьких коллекций.</div>
+      <div class="ntags"><span class="tag t-imm">immutable</span></div>
+    </div>
+    <div class="node n-collsub" id="n-bitset">
+      <div class="nkind">final class</div>
+      <div class="nname">BitSet</div>
+      <div class="ndesc">Set для неотрицательных <code>Int</code> значений.<br>Хранит как битовую маску. Крайне компактен.<br><code>BitSet(1, 3, 5)</code></div>
+      <div class="ntags"><span class="tag t-imm">immutable</span><span class="tag t-jvm">Int only</span></div>
     </div>
     <div class="node n-collsub" id="n-hashmap">
       <div class="nkind">final class</div>
-      <div class="nname">HashMap[K, +V]</div>
-      <div class="ndesc">Map на хэш-таблице. O(1) lookup.<br>Реализован через HAMT.</div>
-      <div class="ntags"><span class="tag t-ro">immutable</span></div>
+      <div class="nname">HashMap[K,+V]</div>
+      <div class="ndesc">Map на хэш-таблице (HAMT). O(1) lookup.<br>Структурное sharing при обновлениях.</div>
+      <div class="ntags"><span class="tag t-imm">immutable</span></div>
+    </div>
+    <div class="node n-collsub" id="n-treemap">
+      <div class="nkind">final class</div>
+      <div class="nname">TreeMap[K,+V]</div>
+      <div class="ndesc">Отсортированная Map (red-black).<br>O(log n). Требует <code>Ordering[K]</code>.</div>
+      <div class="ntags"><span class="tag t-imm">immutable</span><span class="tag t-ro">sorted</span></div>
+    </div>
+    <div class="node n-collsub" id="n-vectormap">
+      <div class="nkind">final class</div>
+      <div class="nname">VectorMap[K,+V]</div>
+      <div class="ndesc">Map с гарантированным порядком вставки.<br>O(1) lookup + сохраняет порядок.<br>Добавлен в Scala 2.13.</div>
+      <div class="ntags"><span class="tag t-imm">immutable</span><span class="tag t-ro">ordered</span></div>
     </div>
     <div class="node n-collsub" id="n-sortedmap">
       <div class="nkind">trait</div>
-      <div class="nname">SortedMap[K, +V]</div>
-      <div class="ndesc">Отсортированная Map.<br>Impl: <code>TreeMap[K,V]</code>. Требует <code>Ordering[K]</code>.</div>
-      <div class="ntags"><span class="tag t-ro">sorted</span></div>
+      <div class="nname">SortedMap[K,+V]</div>
+      <div class="ndesc">Трейт сортированной Map.<br>Impl: <code>TreeMap</code>. Требует <code>Ordering[K]</code>.</div>
+      <div class="ntags"><span class="tag t-imm">immutable</span></div>
     </div>
     <div class="node n-prod" id="n-tuple">
-      <div class="nkind">class / type · Scala 3</div>
+      <div class="nkind">sealed class · Scala 3</div>
       <div class="nname">Tuple</div>
-      <div class="ndesc">
-        Гетерогенные кортежи в Scala 3.<br>
-        <code>(1, "hi", true) : (Int, String, Boolean)</code><br>
-        <code>EmptyTuple</code> + <code>*:</code> (cons) тип.<br>
-        Неограниченная арность. Интроспекция через match types.
-      </div>
-      <div class="ntags"><span class="tag t-s3">Scala 3</span><span class="tag t-sealed">sealed</span></div>
+      <div class="ndesc"><code>(1, "hi", true) : (Int, String, Boolean)</code><br><code>EmptyTuple</code> + <code>*:</code> cons.<br>Неограниченная арность. Match types.</div>
+      <div class="ntags"><span class="tag t-s3">Scala 3</span><span class="tag t-imm">immutable</span></div>
+    </div>
+  </div>
+
+  <div class="spacer-sm"></div>
+  <div class="divider">мутабельные реализации коллекций</div>
+
+  <!-- ░░ ROW 6b — Mutable concrete ░░ -->
+  <div class="row-label">// уровень 5b · mutable collections</div>
+  <div class="row">
+    <div class="node n-mut" id="n-arraybuf">
+      <div class="nkind">final class · mutable</div>
+      <div class="nname">ArrayBuffer[A]</div>
+      <div class="ndesc">Динамический массив. O(1) амортизированный append.<br><code>+=</code>, <code>-=</code>, <code>insert</code>, <code>remove</code></div>
+      <div class="ntags"><span class="tag t-mut">mutable</span><span class="tag t-arr">array backed</span></div>
+    </div>
+    <div class="node n-mut" id="n-arraydeque">
+      <div class="nkind">final class · mutable</div>
+      <div class="nname">ArrayDeque[A]</div>
+      <div class="ndesc">Двусторонняя очередь на кольцевом буфере.<br>O(1) prepend и append с обоих концов.<br>Замена <code>mutable.Queue</code> и <code>Stack</code>.</div>
+      <div class="ntags"><span class="tag t-mut">mutable</span><span class="tag t-arr">deque</span></div>
+    </div>
+    <div class="node n-mut" id="n-listbuf">
+      <div class="nkind">final class · mutable</div>
+      <div class="nname">ListBuffer[A]</div>
+      <div class="ndesc">Буфер для построения <code>List</code>.<br>O(1) prepend/append. <code>.toList</code> — O(1)!<br>Стандартный способ строить <code>List</code>.</div>
+      <div class="ntags"><span class="tag t-mut">mutable</span></div>
+    </div>
+    <div class="node n-mut" id="n-mhashset">
+      <div class="nkind">final class · mutable</div>
+      <div class="nname">mutable.HashSet[A]</div>
+      <div class="ndesc">Мутабельный Set на хэш-таблице.<br>O(1) <code>add</code>/<code>remove</code>/<code>contains</code>.</div>
+      <div class="ntags"><span class="tag t-mut">mutable</span></div>
+    </div>
+    <div class="node n-mut" id="n-mtreeset">
+      <div class="nkind">mutable · sorted</div>
+      <div class="nname">mutable.TreeSet[A]</div>
+      <div class="ndesc">Мутабельный отсортированный Set.<br>O(log n). Требует <code>Ordering[A]</code>.</div>
+      <div class="ntags"><span class="tag t-mut">mutable</span><span class="tag t-ro">sorted</span></div>
+    </div>
+    <div class="node n-mut" id="n-mhashmap">
+      <div class="nkind">final class · mutable</div>
+      <div class="nname">mutable.HashMap[K,V]</div>
+      <div class="ndesc">Мутабельная Map на хэш-таблице.<br>O(1) <code>put</code>/<code>get</code>/<code>remove</code>.</div>
+      <div class="ntags"><span class="tag t-mut">mutable</span></div>
+    </div>
+    <div class="node n-mut" id="n-mtreemap">
+      <div class="nkind">final class · mutable</div>
+      <div class="nname">mutable.TreeMap[K,V]</div>
+      <div class="ndesc">Мутабельная отсортированная Map.<br>O(log n). <code>scala.collection.mutable</code>.</div>
+      <div class="ntags"><span class="tag t-mut">mutable</span><span class="tag t-ro">sorted</span></div>
+    </div>
+    <div class="node n-mut" id="n-linkedhashmap">
+      <div class="nkind">final class · mutable</div>
+      <div class="nname">LinkedHashMap[K,V]</div>
+      <div class="ndesc">Мутабельная Map с порядком вставки.<br>O(1) доступ + сохраняет порядок.<br><code>scala.collection.mutable</code></div>
+      <div class="ntags"><span class="tag t-mut">mutable</span><span class="tag t-ro">ordered</span></div>
     </div>
   </div>
 
@@ -955,10 +1083,15 @@ const connections = [
   { from: 'n-anyref', to: 'n-either',    marker: 'arr-anyref', stroke: '#818cf8', w: 1.5, dash: '' },
   { from: 'n-anyref', to: 'n-throwable', marker: 'arr-anyref', stroke: '#818cf8', w: 1.5, dash: '' },
   { from: 'n-anyref', to: 'n-null',      marker: 'arr-anyref', stroke: '#818cf8', w: 1.5, dash: '' },
-  // Iterable → Seq / Set / Map
-  { from: 'n-iterable', to: 'n-seq', marker: 'arr-coll', stroke: '#e879f9', w: 1.5, dash: '' },
-  { from: 'n-iterable', to: 'n-set', marker: 'arr-coll', stroke: '#e879f9', w: 1.5, dash: '' },
-  { from: 'n-iterable', to: 'n-map', marker: 'arr-coll', stroke: '#e879f9', w: 1.5, dash: '' },
+  { from: 'n-anyref', to: 'n-array',     marker: 'arr-anyref', stroke: '#818cf8', w: 1.5, dash: '' },
+  { from: 'n-anyref', to: 'n-iarray',    marker: 'arr-anyref', stroke: '#818cf8', w: 1.5, dash: '4,3' },
+  // Iterable → immutable.* and mutable.*
+  { from: 'n-iterable', to: 'n-seq',  marker: 'arr-coll', stroke: '#93c5fd', w: 1.5, dash: '' },
+  { from: 'n-iterable', to: 'n-set',  marker: 'arr-coll', stroke: '#93c5fd', w: 1.5, dash: '' },
+  { from: 'n-iterable', to: 'n-map',  marker: 'arr-coll', stroke: '#93c5fd', w: 1.5, dash: '' },
+  { from: 'n-iterable', to: 'n-mseq', marker: 'arr-coll', stroke: '#4ade80', w: 1.5, dash: '4,3' },
+  { from: 'n-iterable', to: 'n-mset', marker: 'arr-coll', stroke: '#4ade80', w: 1.5, dash: '4,3' },
+  { from: 'n-iterable', to: 'n-mmap', marker: 'arr-coll', stroke: '#4ade80', w: 1.5, dash: '4,3' },
   // Option → Some / None
   { from: 'n-option', to: 'n-some', marker: 'arr-opt', stroke: '#f9a8d4', w: 1.5, dash: '' },
   { from: 'n-option', to: 'n-none', marker: 'arr-opt', stroke: '#f9a8d4', w: 1.5, dash: '' },
@@ -968,20 +1101,38 @@ const connections = [
   // Throwable → Exception / Error
   { from: 'n-throwable', to: 'n-exception', marker: 'arr-throw', stroke: '#f87171', w: 1.5, dash: '' },
   { from: 'n-throwable', to: 'n-error',     marker: 'arr-throw', stroke: '#f87171', w: 1.5, dash: '' },
-  // Seq → concrete
-  { from: 'n-seq', to: 'n-list',      marker: 'arr-collsub', stroke: '#d946ef', w: 1.5, dash: '' },
-  { from: 'n-seq', to: 'n-vector',    marker: 'arr-collsub', stroke: '#d946ef', w: 1.5, dash: '' },
-  { from: 'n-seq', to: 'n-lazylist',  marker: 'arr-collsub', stroke: '#d946ef', w: 1.5, dash: '' },
-  { from: 'n-seq', to: 'n-arraybuf',  marker: 'arr-collsub', stroke: '#d946ef', w: 1.5, dash: '' },
-  // Set → concrete
-  { from: 'n-set', to: 'n-hashset', marker: 'arr-collsub', stroke: '#d946ef', w: 1.5, dash: '' },
-  { from: 'n-set', to: 'n-treeset', marker: 'arr-collsub', stroke: '#d946ef', w: 1.5, dash: '' },
-  // Map → concrete
-  { from: 'n-map', to: 'n-hashmap',   marker: 'arr-collsub', stroke: '#d946ef', w: 1.5, dash: '' },
-  { from: 'n-map', to: 'n-sortedmap', marker: 'arr-collsub', stroke: '#d946ef', w: 1.5, dash: '' },
+  // immutable.Seq → concrete immutable sequences
+  { from: 'n-seq', to: 'n-list',     marker: 'arr-collsub', stroke: '#93c5fd', w: 1.3, dash: '' },
+  { from: 'n-seq', to: 'n-vector',   marker: 'arr-collsub', stroke: '#93c5fd', w: 1.3, dash: '' },
+  { from: 'n-seq', to: 'n-lazylist', marker: 'arr-collsub', stroke: '#93c5fd', w: 1.3, dash: '' },
+  { from: 'n-seq', to: 'n-arrayseq', marker: 'arr-collsub', stroke: '#93c5fd', w: 1.3, dash: '' },
+  { from: 'n-seq', to: 'n-queue',    marker: 'arr-collsub', stroke: '#93c5fd', w: 1.3, dash: '' },
+  { from: 'n-seq', to: 'n-range',    marker: 'arr-collsub', stroke: '#93c5fd', w: 1.3, dash: '' },
+  { from: 'n-seq', to: 'n-numrange', marker: 'arr-collsub', stroke: '#93c5fd', w: 1.3, dash: '' },
+  // immutable.Set → concrete
+  { from: 'n-set', to: 'n-hashset', marker: 'arr-collsub', stroke: '#93c5fd', w: 1.3, dash: '' },
+  { from: 'n-set', to: 'n-treeset', marker: 'arr-collsub', stroke: '#93c5fd', w: 1.3, dash: '' },
+  { from: 'n-set', to: 'n-listset', marker: 'arr-collsub', stroke: '#93c5fd', w: 1.3, dash: '' },
+  { from: 'n-set', to: 'n-bitset',  marker: 'arr-collsub', stroke: '#93c5fd', w: 1.3, dash: '' },
+  // immutable.Map → concrete
+  { from: 'n-map', to: 'n-hashmap',   marker: 'arr-collsub', stroke: '#93c5fd', w: 1.3, dash: '' },
+  { from: 'n-map', to: 'n-treemap',   marker: 'arr-collsub', stroke: '#93c5fd', w: 1.3, dash: '' },
+  { from: 'n-map', to: 'n-vectormap', marker: 'arr-collsub', stroke: '#93c5fd', w: 1.3, dash: '' },
+  { from: 'n-map', to: 'n-sortedmap', marker: 'arr-collsub', stroke: '#93c5fd', w: 1.3, dash: '' },
+  // mutable.Seq → concrete mutable sequences
+  { from: 'n-mseq', to: 'n-arraybuf',  marker: 'arr-collsub', stroke: '#4ade80', w: 1.3, dash: '' },
+  { from: 'n-mseq', to: 'n-arraydeque',marker: 'arr-collsub', stroke: '#4ade80', w: 1.3, dash: '' },
+  { from: 'n-mseq', to: 'n-listbuf',   marker: 'arr-collsub', stroke: '#4ade80', w: 1.3, dash: '' },
+  // mutable.Set → concrete
+  { from: 'n-mset', to: 'n-mhashset', marker: 'arr-collsub', stroke: '#4ade80', w: 1.3, dash: '' },
+  { from: 'n-mset', to: 'n-mtreeset', marker: 'arr-collsub', stroke: '#4ade80', w: 1.3, dash: '' },
+  // mutable.Map → concrete
+  { from: 'n-mmap', to: 'n-mhashmap',    marker: 'arr-collsub', stroke: '#4ade80', w: 1.3, dash: '' },
+  { from: 'n-mmap', to: 'n-mtreemap',    marker: 'arr-collsub', stroke: '#4ade80', w: 1.3, dash: '' },
+  { from: 'n-mmap', to: 'n-linkedhashmap',marker:'arr-collsub', stroke: '#4ade80', w: 1.3, dash: '' },
   // Product → Tuple
   { from: 'n-product', to: 'n-tuple', marker: 'arr-prod', stroke: '#a78bfa', w: 1.5, dash: '' },
-  // Nothing ← All (dashed "is subtype of" arrows from Nothing upward for illustrative purposes)
+  // Nothing ← All (dashed "is subtype of" arrows)
   { from: 'n-nothing', to: 'n-any',    marker: 'arr-nothing', stroke: '#ef4444', w: 1, dash: '5,4', opacity: 0.35 },
   { from: 'n-nothing', to: 'n-anyval', marker: 'arr-nothing', stroke: '#ef4444', w: 1, dash: '4,4', opacity: 0.35 },
   { from: 'n-nothing', to: 'n-anyref', marker: 'arr-nothing', stroke: '#ef4444', w: 1, dash: '4,4', opacity: 0.35 },
@@ -1011,45 +1162,93 @@ function bezier(x1, y1, x2, y2) {
 }
 
 // ── selection state ───────────────────────────────
-let activeVisPath = null;   // visible path currently highlighted
-let activeNodes   = [];     // [fromEl, toEl] currently highlighted
+// Both arrow-click and node-click share these arrays
+let activePaths = [];   // { vis, conn } currently highlighted
+let activeNodes = [];   // DOM elements currently highlighted
+
+// Map from connection index → vis path element (populated in drawConnections)
+const visByIndex = {};
 
 function clearSelection() {
-  if (activeVisPath) {
-    const conn = activeVisPath._conn;
-    activeVisPath.setAttribute('stroke-width', conn.w);
-    activeVisPath.setAttribute('opacity', conn.opacity ?? 0.65);
-    activeVisPath.setAttribute('filter', '');
-    activeVisPath = null;
-  }
+  activePaths.forEach(({ vis, conn }) => {
+    vis.setAttribute('stroke-width', conn.w);
+    vis.setAttribute('opacity', conn.opacity ?? 0.65);
+  });
+  activePaths = [];
   activeNodes.forEach(el => el.classList.remove('node-active'));
   activeNodes = [];
   const tip = document.getElementById('conn-tooltip');
   tip.style.opacity = '0';
 }
 
+// Highlight a single vis+conn (used by arrow-click)
 function selectPath(visPath, conn, clientX, clientY) {
   clearSelection();
+  _activatePath(visPath, conn);
 
-  // brighten the visible path
-  visPath.setAttribute('stroke-width', (conn.w * 2.8));
-  visPath.setAttribute('opacity', '1');
-  activeVisPath = visPath;
-
-  // highlight from / to nodes
   const fromEl = document.getElementById(conn.from);
   const toEl   = document.getElementById(conn.to);
-  [fromEl, toEl].forEach(el => { if (el) el.classList.add('node-active'); });
-  activeNodes = [fromEl, toEl].filter(Boolean);
+  _activateNodes([fromEl, toEl]);
 
-  // tooltip
   const fromName = (fromEl?.querySelector('.nname')?.textContent || conn.from).trim();
   const toName   = (toEl  ?.querySelector('.nname')?.textContent || conn.to  ).trim();
+  _showTip(`<span style="opacity:.6">parent</span> <strong style="color:${conn.stroke}">${fromName}</strong> <span style="opacity:.6">→ extends →</span> <strong style="color:${conn.stroke}">${toName}</strong>`, conn.stroke, clientX, clientY);
+}
+
+// Highlight all edges connected to a node (used by node-click)
+function selectNode(nodeId, clientX, clientY) {
+  // If same node clicked again — deselect
+  if (activeNodes.length === 1 && activeNodes[0]?.id === nodeId) {
+    clearSelection(); return;
+  }
+  clearSelection();
+
+  const related = connections
+    .map((conn, i) => ({ conn, i }))
+    .filter(({ conn }) => conn.from === nodeId || conn.to === nodeId);
+
+  if (!related.length) return;
+
+  const nodeSet = new Set([nodeId]);
+  related.forEach(({ conn, i }) => {
+    const vis = visByIndex[i];
+    if (vis) _activatePath(vis, conn);
+    nodeSet.add(conn.from);
+    nodeSet.add(conn.to);
+  });
+
+  _activateNodes([...nodeSet].map(id => document.getElementById(id)));
+
+  // Build tooltip: parents above, children below
+  const parents  = related.filter(({ conn }) => conn.to   === nodeId).map(({ conn }) => conn.from);
+  const children = related.filter(({ conn }) => conn.from === nodeId).map(({ conn }) => conn.to);
+  const getName  = id => document.getElementById(id)?.querySelector('.nname')?.textContent?.trim() || id;
+  const clickedName = getName(nodeId);
+  const accentColor = related[0].conn.stroke;
+
+  let html = `<strong style="color:${accentColor}">${clickedName}</strong>`;
+  if (parents.length)  html += ` &nbsp;<span style="opacity:.55">extends</span> ${parents.map(id=>`<strong style="color:#aaa">${getName(id)}</strong>`).join(', ')}`;
+  if (children.length) html += ` &nbsp;<span style="opacity:.55">←</span> ${children.map(id=>`<span style="color:#777">${getName(id)}</span>`).join(', ')}`;
+  _showTip(html, accentColor, clientX, clientY);
+}
+
+// ── private helpers ───────────────────────────────
+function _activatePath(vis, conn) {
+  vis.setAttribute('stroke-width', conn.w * 2.8);
+  vis.setAttribute('opacity', '1');
+  activePaths.push({ vis, conn });
+}
+
+function _activateNodes(els) {
+  els.forEach(el => { if (el) { el.classList.add('node-active'); activeNodes.push(el); } });
+}
+
+function _showTip(html, borderColor, x, y) {
   const tip = document.getElementById('conn-tooltip');
-  tip.innerHTML = `<span style="opacity:.6">parent</span> <strong style="color:${conn.stroke}">${fromName}</strong> <span style="opacity:.6">→ extends →</span> <strong style="color:${conn.stroke}">${toName}</strong>`;
-  tip.style.left = (clientX + 14) + 'px';
-  tip.style.top  = (clientY - 14) + 'px';
-  tip.style.borderColor = conn.stroke + '88';
+  tip.innerHTML = html;
+  tip.style.left = (x + 14) + 'px';
+  tip.style.top  = (y - 14) + 'px';
+  tip.style.borderColor = borderColor + '88';
   tip.style.opacity = '1';
 }
 
@@ -1057,11 +1256,12 @@ function selectPath(visPath, conn, clientX, clientY) {
 function drawConnections() {
   const svg = document.getElementById('svg-overlay');
   svg.querySelectorAll('path.conn, path.conn-hit').forEach(p => p.remove());
+  Object.keys(visByIndex).forEach(k => delete visByIndex[k]);
 
   const pageH = document.getElementById('page-container').offsetHeight;
   svg.setAttribute('height', pageH);
 
-  connections.forEach(conn => {
+  connections.forEach((conn, idx) => {
     const fromEl = document.getElementById(conn.from);
     const toEl   = document.getElementById(conn.to);
     if (!fromEl || !toEl) return;
@@ -1094,42 +1294,46 @@ function drawConnections() {
     vis.setAttribute('opacity', conn.opacity ?? 0.65);
     vis.style.transition = 'stroke-width .15s, opacity .15s';
     vis._conn = conn;
+    visByIndex[idx] = vis;
     svg.appendChild(vis);
 
-    // ── invisible hit-area path (wider, transparent) ──
+    // ── invisible hit-area path ──
     const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     hit.setAttribute('class', 'conn-hit');
     hit.setAttribute('d', d);
     hit.setAttribute('stroke', 'transparent');
     hit.setAttribute('stroke-width', Math.max(conn.w + 14, 18));
     hit.setAttribute('fill', 'none');
-    hit._vis  = vis;
-    hit._conn = conn;
 
     hit.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (activeVisPath === vis) {
-        clearSelection();
-      } else {
-        selectPath(vis, conn, e.clientX, e.clientY);
-      }
+      const alreadyActive = activePaths.length === 1 && activePaths[0].vis === vis;
+      if (alreadyActive) { clearSelection(); } else { selectPath(vis, conn, e.clientX, e.clientY); }
     });
-
-    // hover preview
     hit.addEventListener('mouseenter', () => {
-      if (activeVisPath !== vis) {
+      if (!activePaths.find(p => p.vis === vis)) {
         vis.setAttribute('stroke-width', conn.w * 1.8);
         vis.setAttribute('opacity', '0.9');
       }
     });
     hit.addEventListener('mouseleave', () => {
-      if (activeVisPath !== vis) {
+      if (!activePaths.find(p => p.vis === vis)) {
         vis.setAttribute('stroke-width', conn.w);
         vis.setAttribute('opacity', conn.opacity ?? 0.65);
       }
     });
-
     svg.appendChild(hit);
+  });
+
+  // ── node click listeners ──────────────────────
+  document.querySelectorAll('.node').forEach(el => {
+    // remove old listener by cloning (cheap, no refs needed)
+    const fresh = el.cloneNode(true);
+    el.parentNode.replaceChild(fresh, el);
+    fresh.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectNode(fresh.id, e.clientX, e.clientY);
+    });
   });
 }
 
@@ -1159,7 +1363,7 @@ window.addEventListener('load', () => {
     text-align: center; margin: 8px auto 0;
     max-width: 500px;
   `;
-  label.innerHTML = `<span style="color:#ef4444; opacity:.5">— — →</span> пунктирные красные стрелки = Nothing является подтипом этих типов &nbsp;·&nbsp; <span style="color:#504a6a">кликни на стрелку чтобы подсветить наследование</span>`;
+  label.innerHTML = `<span style="color:#ef4444; opacity:.5">— — →</span> пунктирные красные стрелки = Nothing является подтипом этих типов &nbsp;·&nbsp; <span style="color:#504a6a">кликни на стрелку <em>или блок</em> чтобы подсветить наследование</span>`;
   document.querySelector('.tree').appendChild(label);
 });
 </script>
