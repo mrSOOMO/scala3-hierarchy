@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scala 3 — Иерархия типов</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg:          #09080e;
+  --bg2:         #100f17;
+  --bg3:         #18162200;
+  --border:      #221f30;
+  --line:        #2a2640;
+  --text:        #ccc8e0;
+  --dim:         #504a6a;
+
+  --c-any:       #ff6b35;
+  --c-match:     #06d6a0;
+  --c-anyval:    #38bdf8;
+  --c-prim:      #7dd3fc;
+  --c-anyref:    #818cf8;
+  --c-string:    #c084fc;
+  --c-product:   #a78bfa;
+  --c-coll:      #e879f9;
+  --c-collsub:   #d946ef;
+  --c-option:    #f9a8d4;
+  --c-either:    #fb7185;
+  --c-throw:     #f87171;
+  --c-null:      #64748b;
+  --c-nothing:   #ef4444;
+  --c-scala3:    #fbbf24;
+  --c-enum3:     #34d399;
+
+  --r: 9px;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Sans', sans-serif;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* ─── SVG overlay ─────────────────────────────────── */
+#page-container { position: relative; }
+#svg-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  overflow: visible;
+}
+/* hit paths are wide & transparent — clickable */
+#svg-overlay path.conn-hit {
+  pointer-events: stroke;
+  cursor: pointer;
+}
+/* active node highlight */
+.node-active {
+  outline: 2px solid #fff !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(255,255,255,.18), 0 0 28px rgba(255,255,255,.12) !important;
+  background: #1e1c2e !important;
+  z-index: 30 !important;
+  transform: translateY(-2px);
+}
+/* tooltip */
+#conn-tooltip {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .72rem;
+  background: #1a1828;
+  border: 1.5px solid rgba(255,255,255,.2);
+  border-radius: 8px;
+  padding: 7px 12px;
+  color: #e0daf0;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0,0,0,.6);
+  opacity: 0;
+  transition: opacity .15s;
+}
+
+/* ─── HEADER ──────────────────────────────────────── */
+header {
+  text-align: center;
+  padding: 52px 24px 32px;
+  position: relative;
+  overflow: hidden;
+}
+header::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% -10%, rgba(255,107,53,.1) 0%, transparent 65%),
+    radial-gradient(ellipse 40% 30% at 15% 70%, rgba(6,214,160,.07) 0%, transparent 60%),
+    radial-gradient(ellipse 30% 40% at 85% 50%, rgba(129,140,248,.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+header h1 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(1.5rem, 4.5vw, 2.9rem);
+  font-weight: 700;
+  background: linear-gradient(130deg, #ff6b35 0%, #06d6a0 40%, #818cf8 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -.03em;
+  position: relative;
+}
+header .sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .75rem; color: var(--dim);
+  margin-top: 10px; position: relative;
+}
+.badge-scala3 {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .68rem; font-weight: 600;
+  color: var(--c-scala3);
+  background: rgba(251,191,36,.1);
+  border: 1px solid rgba(251,191,36,.25);
+  border-radius: 20px;
+  padding: 3px 10px;
+  margin-top: 12px;
+  position: relative;
+}
+
+/* ─── LEGEND ──────────────────────────────────────── */
+.legend {
+  display: flex; flex-wrap: wrap;
+  justify-content: center; gap: 8px 18px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.legend-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: .7rem; color: var(--dim);
+  font-family: 'JetBrains Mono', monospace;
+}
+.ldot { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
+.ldash { width: 14px; height: 0; border-top: 2px dashed; flex-shrink: 0; }
+
+/* ─── TREE LAYOUT ─────────────────────────────────── */
+.tree {
+  max-width: 1460px;
+  margin: 0 auto;
+  padding: 48px 32px 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  margin: 14px 0 6px;
+  position: relative;
+  z-index: 10;
+}
+.row-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .6rem;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  text-align: center;
+  margin: 8px 0 4px;
+}
+
+/* ─── SPACER / ARROW HINT ─────────────────────────── */
+.spacer { height: 38px; }
+.spacer-sm { height: 22px; }
+
+/* ─── NODE CARDS ──────────────────────────────────── */
+.node {
+  border-radius: var(--r);
+  border: 1.5px solid var(--border);
+  background: var(--bg2);
+  padding: 11px 13px;
+  min-width: 140px;
+  max-width: 200px;
+  position: relative;
+  z-index: 10;
+  transition: transform .2s, box-shadow .2s, background .2s;
+  cursor: default;
+}
+.node:hover {
+  background: #1a1828;
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0,0,0,.6);
+  z-index: 20;
+}
+.node.wide  { max-width: 260px; }
+.node.xwide { max-width: 320px; min-width: 260px; }
+.node.center { text-align: center; min-width: 180px; }
+
+.nkind {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .55rem; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--dim);
+  margin-bottom: 3px;
+}
+.nname {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600; font-size: .88rem;
+  margin-bottom: 5px;
+}
+.ndesc {
+  font-size: .68rem; color: var(--dim); line-height: 1.6;
+}
+.ndesc strong { color: var(--text); font-weight: 500; }
+.ndesc code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .63rem;
+  background: rgba(255,255,255,.06);
+  padding: 0 3px; border-radius: 3px;
+}
+
+.ntags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .56rem; font-weight: 600;
+  padding: 2px 6px; border-radius: 4px;
+  letter-spacing: .02em;
+}
+
+/* colour variants */
+.n-any     { border-color: var(--c-any);     box-shadow: 0 0 20px rgba(255,107,53,.15); }
+.n-any     .nname { color: var(--c-any); font-size: 1.2rem; }
+.n-match   { border-color: var(--c-match);   box-shadow: 0 0 16px rgba(6,214,160,.12); }
+.n-match   .nname { color: var(--c-match); }
+.n-anyval  { border-color: var(--c-anyval);  box-shadow: 0 0 12px rgba(56,189,248,.1); }
+.n-anyval  .nname { color: var(--c-anyval); }
+.n-anyref  { border-color: var(--c-anyref);  box-shadow: 0 0 12px rgba(129,140,248,.1); }
+.n-anyref  .nname { color: var(--c-anyref); }
+.n-prim    { border-color: rgba(125,211,252,.35); }
+.n-prim    .nname { color: var(--c-prim); }
+.n-str     { border-color: rgba(192,132,252,.35); }
+.n-str     .nname { color: var(--c-string); }
+.n-prod    { border-color: rgba(167,139,250,.35); border-style: dashed; }
+.n-prod    .nname { color: var(--c-product); }
+.n-coll    { border-color: rgba(232,121,249,.35); border-style: dashed; }
+.n-coll    .nname { color: var(--c-coll); }
+.n-collsub { border-color: rgba(217,70,239,.3); }
+.n-collsub .nname { color: var(--c-collsub); }
+.n-opt     { border-color: rgba(249,168,212,.3); border-style: dashed; }
+.n-opt     .nname { color: var(--c-option); }
+.n-either  { border-color: rgba(251,113,133,.3); border-style: dashed; }
+.n-either  .nname { color: var(--c-either); }
+.n-throw   { border-color: rgba(248,113,113,.35); }
+.n-throw   .nname { color: var(--c-throw); }
+.n-null    { border-color: rgba(100,116,139,.35); }
+.n-null    .nname { color: var(--c-null); }
+.n-enum3   { border-color: rgba(52,211,153,.35); }
+.n-enum3   .nname { color: var(--c-enum3); }
+.n-nothing {
+  border-color: var(--c-nothing);
+  background: #130808;
+  box-shadow: 0 0 30px rgba(239,68,68,.25);
+}
+.n-nothing .nname { color: var(--c-nothing); font-size: 1.1rem; }
+.n-scala3  { border-color: rgba(251,191,36,.45); background: rgba(251,191,36,.04); }
+.n-scala3  .nname { color: var(--c-scala3); }
+
+/* tag colors */
+.t-top    { background: rgba(255,107,53,.12);  color: #ff6b35; }
+.t-s3     { background: rgba(251,191,36,.12);  color: #fbbf24; }
+.t-abs    { background: rgba(129,140,248,.12); color: #818cf8; }
+.t-trait  { background: rgba(6,214,160,.12);   color: #06d6a0; }
+.t-jvm    { background: rgba(56,189,248,.1);   color: #38bdf8; }
+.t-bot    { background: rgba(239,68,68,.12);   color: #ef4444; }
+.t-ro     { background: rgba(56,189,248,.08);  color: #7dd3fc; }
+.t-mut    { background: rgba(52,211,153,.1);   color: #6ee7b7; }
+.t-bad    { background: rgba(100,116,139,.1);  color: #94a3b8; }
+.t-sealed { background: rgba(240,171,252,.1);  color: #e879f9; }
+
+/* ─── DIVIDER / SECTION ───────────────────────────── */
+.divider {
+  display: flex; align-items: center; gap: 14px;
+  width: 100%; max-width: 960px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .62rem; color: var(--dim);
+  margin: 2px 0;
+}
+.divider::before,.divider::after {
+  content: '';
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+}
+
+/* ─── SPECIAL PANELS ──────────────────────────────── */
+.scala3-features {
+  width: 100%; max-width: 1000px;
+  margin: 16px auto;
+  border: 1px solid rgba(251,191,36,.2);
+  border-radius: 12px;
+  background: rgba(251,191,36,.03);
+  padding: 20px 24px;
+}
+.scala3-features h3 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .72rem; font-weight: 600;
+  color: var(--c-scala3);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  margin-bottom: 16px;
+}
+.features-grid {
+  display: flex; flex-wrap: wrap; gap: 10px;
+}
+.feat {
+  border: 1px solid rgba(251,191,36,.18);
+  border-radius: var(--r);
+  background: rgba(251,191,36,.05);
+  padding: 10px 14px;
+  min-width: 180px; flex: 1;
+}
+.feat-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .8rem; font-weight: 600;
+  color: var(--c-scala3);
+  margin-bottom: 4px;
+}
+.feat-desc { font-size: .67rem; color: var(--dim); line-height: 1.55; }
+.feat-desc code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .63rem;
+  background: rgba(255,255,255,.06);
+  padding: 0 3px; border-radius: 3px;
+  color: var(--text);
+}
+
+/* ─── NOTHING PANEL ───────────────────────────────── */
+.nothing-panel {
+  max-width: 420px; text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .7rem; color: var(--dim); line-height: 1.9;
+  padding: 4px 0 0;
+}
+
+footer {
+  text-align: center;
+  padding: 24px;
+  border-top: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .68rem; color: var(--dim);
+}
+</style>
+</head>
+<body>
+
+<div id="page-container">
+<svg id="svg-overlay" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- arrowhead markers per colour -->
+    <marker id="arr-any"     markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#ff6b35"/></marker>
+    <marker id="arr-match"   markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#06d6a0"/></marker>
+    <marker id="arr-anyval"  markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#38bdf8"/></marker>
+    <marker id="arr-anyref"  markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#818cf8"/></marker>
+    <marker id="arr-coll"    markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#e879f9"/></marker>
+    <marker id="arr-collsub" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#d946ef"/></marker>
+    <marker id="arr-opt"     markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#f9a8d4"/></marker>
+    <marker id="arr-either"  markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#fb7185"/></marker>
+    <marker id="arr-throw"   markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#f87171"/></marker>
+    <marker id="arr-nothing" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#ef4444"/></marker>
+    <marker id="arr-prod"    markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#a78bfa"/></marker>
+    <marker id="arr-null"    markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#64748b"/></marker>
+  </defs>
+</svg>
+
+<!-- ═══════════════════ HEADER ══════════════════════ -->
+<header>
+  <h1>// Scala 3 — Иерархия типов</h1>
+  <p class="sub">// Unified type system: Any → Matchable → AnyVal / AnyRef → Nothing</p>
+  <div class="badge-scala3">★ Scala 3 (Dotty) · включает новые типы: Matchable, Union, Intersection, Opaque</div>
+</header>
+
+<!-- ═══════════════════ LEGEND ══════════════════════ -->
+<div class="legend">
+  <div class="legend-item"><div class="ldot" style="background:var(--c-any)"></div>Any — корень</div>
+  <div class="legend-item"><div class="ldot" style="background:var(--c-match)"></div>Matchable (Scala 3)</div>
+  <div class="legend-item"><div class="ldot" style="background:var(--c-anyval)"></div>AnyVal — value types</div>
+  <div class="legend-item"><div class="ldot" style="background:var(--c-anyref)"></div>AnyRef — reference types</div>
+  <div class="legend-item"><div class="ldash" style="border-color:var(--c-coll)"></div>Коллекции (trait)</div>
+  <div class="legend-item"><div class="ldash" style="border-color:var(--c-opt)"></div>Option / Either</div>
+  <div class="legend-item"><div class="ldot" style="background:var(--c-throw)"></div>Throwable</div>
+  <div class="legend-item"><div class="ldot" style="background:var(--c-null)"></div>Null</div>
+  <div class="legend-item"><div class="ldot" style="background:var(--c-nothing)"></div>Nothing — дно</div>
+  <div class="legend-item"><div class="ldot" style="background:var(--c-scala3)"></div>Scala 3 new</div>
+</div>
+
+<!-- ═══════════════════ TREE ════════════════════════ -->
+<div class="tree">
+
+  <!-- ░░ ROW 0 — Any ░░ -->
+  <div class="row-label">// уровень 0 · абсолютный суперкласс</div>
+  <div class="row">
+    <div class="node n-any wide center" id="n-any">
+      <div class="nkind">sealed abstract class · top type</div>
+      <div class="nname">Any</div>
+      <div class="ndesc">
+        Суперкласс <strong>всех</strong> типов Scala — единственный тип без суперкласса.<br>
+        <strong>Методы:</strong> <code>==</code>, <code>!=</code>, <code>equals</code>, <code>##</code>, <code>hashCode</code>, <code>toString</code>,<br>
+        <code>isInstanceOf[T]</code>, <code>asInstanceOf[T]</code>
+      </div>
+      <div class="ntags">
+        <span class="tag t-top">Top Type</span>
+        <span class="tag t-abs">abstract</span>
+        <span class="tag t-sealed">sealed</span>
+        <span class="tag t-jvm">JVM: Object + primitives</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="spacer" id="sp0"></div>
+  <div class="divider">наследуют Any напрямую</div>
+
+  <!-- ░░ ROW 1 — Matchable ░░ -->
+  <div class="row-label">// уровень 1 · Scala 3 — безопасный pattern matching</div>
+  <div class="row">
+    <div class="node n-match wide center" id="n-matchable">
+      <div class="nkind">trait · Scala 3 new · sealed</div>
+      <div class="nname">Matchable</div>
+      <div class="ndesc">
+        Новый в Scala 3. Маркирует типы, которые <strong>можно безопасно</strong> сопоставить в <code>match</code>.<br>
+        Без него <code>Any</code> нельзя матчить — компилятор выдаст предупреждение.<br>
+        Все конкретные типы (<code>AnyVal</code>, <code>AnyRef</code>) расширяют <code>Matchable</code>.<br>
+        Параметр типа <code>[T]</code> без ограничения — это <code>Any</code>, <em>не</em> <code>Matchable</code>.
+      </div>
+      <div class="ntags">
+        <span class="tag t-s3">Scala 3</span>
+        <span class="tag t-trait">trait</span>
+        <span class="tag t-sealed">sealed</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="spacer" id="sp1"></div>
+  <div class="divider">два ствола иерархии</div>
+
+  <!-- ░░ ROW 2 — AnyVal + AnyRef ░░ -->
+  <div class="row-label">// уровень 2 · value types vs reference types</div>
+  <div class="row">
+    <div class="node n-anyval wide" id="n-anyval">
+      <div class="nkind">abstract class · value types</div>
+      <div class="nname">AnyVal</div>
+      <div class="ndesc">
+        База всех <strong>value types</strong>. На JVM — примитивы (<code>int</code>, <code>double</code>…), без аллокации на куче.<br>
+        В nullable-контексте автоматически боксируются в <code>Integer</code> и т.д.<br>
+        <strong>Value class:</strong> <code>class Wrapper(val v: Int) extends AnyVal</code>
+      </div>
+      <div class="ntags">
+        <span class="tag t-abs">abstract</span>
+        <span class="tag t-jvm">JVM primitives</span>
+      </div>
+    </div>
+    <div class="node n-anyref wide" id="n-anyref">
+      <div class="nkind">abstract class · reference types</div>
+      <div class="nname">AnyRef</div>
+      <div class="ndesc">
+        База всех <strong>reference types</strong> — синоним <code>java.lang.Object</code>.<br>
+        Добавляет: <code>eq</code>/<code>ne</code> (ссылочное равенство), <code>synchronized</code>, <code>wait</code>, <code>notify</code>.<br>
+        Все пользовательские классы, трейты и объекты расширяют <code>AnyRef</code>.
+      </div>
+      <div class="ntags">
+        <span class="tag t-abs">abstract</span>
+        <span class="tag t-jvm">java.lang.Object</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="spacer" id="sp2"></div>
+  <div class="divider">value types (AnyVal → ...)</div>
+
+  <!-- ░░ ROW 3 — Value types ░░ -->
+  <div class="row-label">// уровень 3a · примитивные value types</div>
+  <div class="row">
+    <div class="node n-prim" id="n-int">
+      <div class="nkind">final class</div>
+      <div class="nname">Int</div>
+      <div class="ndesc">32-бит знаковое целое.<br>−2³¹…2³¹−1<br>Literal: <code>42</code>, <code>0xff</code></div>
+      <div class="ntags"><span class="tag t-jvm">int / Integer</span></div>
+    </div>
+    <div class="node n-prim" id="n-long">
+      <div class="nkind">final class</div>
+      <div class="nname">Long</div>
+      <div class="ndesc">64-бит знаковое целое.<br>Суффикс: <code>42L</code></div>
+      <div class="ntags"><span class="tag t-jvm">long / Long</span></div>
+    </div>
+    <div class="node n-prim" id="n-short">
+      <div class="nkind">final class</div>
+      <div class="nname">Short</div>
+      <div class="ndesc">16-бит знаковое целое.<br>−32 768 … 32 767</div>
+      <div class="ntags"><span class="tag t-jvm">short / Short</span></div>
+    </div>
+    <div class="node n-prim" id="n-byte">
+      <div class="nkind">final class</div>
+      <div class="nname">Byte</div>
+      <div class="ndesc">8-бит знаковое.<br>−128 … 127</div>
+      <div class="ntags"><span class="tag t-jvm">byte / Byte</span></div>
+    </div>
+    <div class="node n-prim" id="n-float">
+      <div class="nkind">final class</div>
+      <div class="nname">Float</div>
+      <div class="ndesc">IEEE 754, 32-бит.<br>Суффикс: <code>3.14f</code></div>
+      <div class="ntags"><span class="tag t-jvm">float / Float</span></div>
+    </div>
+    <div class="node n-prim" id="n-double">
+      <div class="nkind">final class</div>
+      <div class="nname">Double</div>
+      <div class="ndesc">IEEE 754, 64-бит.<br>По умолчанию: <code>3.14</code></div>
+      <div class="ntags"><span class="tag t-jvm">double / Double</span></div>
+    </div>
+    <div class="node n-prim" id="n-char">
+      <div class="nkind">final class</div>
+      <div class="nname">Char</div>
+      <div class="ndesc">UTF-16 символ.<br>Literal: <code>'A'</code>, <code>'\n'</code><br>Является <code>AnyVal</code>, <em>не</em> <code>Int</code></div>
+      <div class="ntags"><span class="tag t-jvm">char / Character</span></div>
+    </div>
+    <div class="node n-prim" id="n-boolean">
+      <div class="nkind">final class</div>
+      <div class="nname">Boolean</div>
+      <div class="ndesc"><code>true</code> / <code>false</code>.<br>Операторы: <code>&&</code>, <code>||</code>, <code>!</code></div>
+      <div class="ntags"><span class="tag t-jvm">boolean / Boolean</span></div>
+    </div>
+    <div class="node n-prim" id="n-unit">
+      <div class="nkind">final class · singleton</div>
+      <div class="nname">Unit</div>
+      <div class="ndesc">Аналог <code>void</code>.<br>Единственное значение: <code>()</code>.<br>Функции без return → <code>Unit</code></div>
+      <div class="ntags"><span class="tag t-jvm">void</span></div>
+    </div>
+  </div>
+
+  <div class="spacer-sm"></div>
+  <div class="divider">reference types (AnyRef → ...)</div>
+
+  <!-- ░░ ROW 4 — AnyRef direct children ░░ -->
+  <div class="row-label">// уровень 3b · прямые наследники AnyRef</div>
+  <div class="row">
+    <div class="node n-str" id="n-string">
+      <div class="nkind">final class</div>
+      <div class="nname">String</div>
+      <div class="ndesc">
+        <code>java.lang.String</code>. Неизменяемая последовательность символов.<br>
+        Интерполяция: <code>s"hi $name"</code>, <code>f"$x%.2f"</code>, <code>raw"\n"</code>, <code>s"""...</code>
+      </div>
+      <div class="ntags"><span class="tag t-jvm">java.lang.String</span></div>
+    </div>
+
+    <div class="node n-prod" id="n-product">
+      <div class="nkind">trait · sealed</div>
+      <div class="nname">Product</div>
+      <div class="ndesc">
+        Основа всех <code>case class</code> и кортежей.<br>
+        <code>productArity: Int</code>, <code>productElement(n)</code>, <code>productIterator</code>.<br>
+        Реализуется автоматически при <code>case class</code>.
+      </div>
+      <div class="ntags"><span class="tag t-trait">trait</span><span class="tag t-sealed">sealed</span></div>
+    </div>
+
+    <div class="node n-enum3" id="n-enum3">
+      <div class="nkind">trait · Scala 3</div>
+      <div class="nname">scala.reflect.Enum</div>
+      <div class="ndesc">
+        База всех <strong>Scala 3 enum</strong>.<br>
+        <code>enum Color { case Red, Green, Blue }</code><br>
+        Методы: <code>ordinal: Int</code>, <code>values</code>, <code>valueOf</code>.<br>
+        В отличие от Java — может иметь параметры и методы.
+      </div>
+      <div class="ntags"><span class="tag t-s3">Scala 3</span><span class="tag t-trait">trait</span></div>
+    </div>
+
+    <div class="node n-coll" id="n-iterable">
+      <div class="nkind">trait · covariant</div>
+      <div class="nname">Iterable[+A]</div>
+      <div class="ndesc">
+        Корень иерархии коллекций.<br>
+        <code>iterator: Iterator[A]</code>, <code>map</code>, <code>filter</code>, <code>flatMap</code>, <code>foldLeft</code>…<br>
+        Все коллекции — функторы и монады.
+      </div>
+      <div class="ntags"><span class="tag t-trait">trait</span><span class="tag t-ro">immutable</span></div>
+    </div>
+
+    <div class="node n-opt" id="n-option">
+      <div class="nkind">sealed abstract class · covariant</div>
+      <div class="nname">Option[+A]</div>
+      <div class="ndesc">
+        Монада Optional. Заменяет <code>null</code>.<br>
+        <code>Some(value)</code> / <code>None</code>.<br>
+        Методы: <code>map</code>, <code>flatMap</code>, <code>getOrElse</code>, <code>fold</code>, <code>orElse</code>
+      </div>
+      <div class="ntags"><span class="tag t-sealed">sealed</span></div>
+    </div>
+
+    <div class="node n-either" id="n-either">
+      <div class="nkind">sealed abstract class</div>
+      <div class="nname">Either[+A, +B]</div>
+      <div class="ndesc">
+        <code>Left[A]</code> (ошибка) / <code>Right[B]</code> (успех).<br>
+        Right-biased: <code>map</code>/<code>flatMap</code> работают с <code>Right</code>.<br>
+        Альтернатива <code>Try</code> для функциональной обработки ошибок.
+      </div>
+      <div class="ntags"><span class="tag t-sealed">sealed</span></div>
+    </div>
+
+    <div class="node n-throw" id="n-throwable">
+      <div class="nkind">class</div>
+      <div class="nname">Throwable</div>
+      <div class="ndesc">
+        База исключений и ошибок.<br>
+        <code>message: String</code>, <code>cause: Throwable</code>, <code>getStackTrace</code>.<br>
+        <code>try { } catch { case e: Ex => }</code>
+      </div>
+      <div class="ntags"><span class="tag t-jvm">java.lang.Throwable</span></div>
+    </div>
+
+    <div class="node n-null" id="n-null">
+      <div class="nkind">final class · special</div>
+      <div class="nname">Null</div>
+      <div class="ndesc">
+        Подтип всех <code>AnyRef</code>-типов.<br>
+        Единственное значение: <code>null</code>.<br>
+        В Scala 3 есть флаг <code>-Yexplicit-nulls</code>, делающий <code>null</code> явным. Предпочитай <code>Option</code>.
+      </div>
+      <div class="ntags"><span class="tag t-bad">avoid</span><span class="tag t-s3">explicit-nulls</span></div>
+    </div>
+  </div>
+
+  <div class="spacer" id="sp3"></div>
+  <div class="divider">подтипы коллекций Iterable</div>
+
+  <!-- ░░ ROW 5 — Collections sub-types ░░ -->
+  <div class="row-label">// уровень 4a · ветви коллекций</div>
+  <div class="row">
+    <!-- SEQ branch -->
+    <div class="node n-coll" id="n-seq">
+      <div class="nkind">trait · sealed</div>
+      <div class="nname">Seq[+A]</div>
+      <div class="ndesc">
+        Упорядоченная последовательность с индексом.<br>
+        <code>apply(i)</code>, <code>length</code>, <code>indexOf</code>, <code>slice</code>, <code>sorted</code>
+      </div>
+      <div class="ntags"><span class="tag t-trait">trait</span><span class="tag t-ro">read-only</span></div>
+    </div>
+    <!-- SET branch -->
+    <div class="node n-coll" id="n-set">
+      <div class="nkind">trait</div>
+      <div class="nname">Set[A]</div>
+      <div class="ndesc">
+        Множество — без дублей.<br>
+        <code>contains</code>, <code>union</code>, <code>intersect</code>, <code>diff</code>, <code>subsetOf</code>
+      </div>
+      <div class="ntags"><span class="tag t-trait">trait</span><span class="tag t-ro">immutable</span></div>
+    </div>
+    <!-- MAP branch -->
+    <div class="node n-coll" id="n-map">
+      <div class="nkind">trait</div>
+      <div class="nname">Map[K, +V]</div>
+      <div class="ndesc">
+        Пары ключ-значение. Ключи уникальны.<br>
+        <code>get(k)</code>, <code>updated(k,v)</code>, <code>keys</code>, <code>values</code>, <code>filterKeys</code>
+      </div>
+      <div class="ntags"><span class="tag t-trait">trait</span><span class="tag t-ro">immutable</span></div>
+    </div>
+    <!-- Option sub -->
+    <div class="node n-opt" id="n-some">
+      <div class="nkind">final case class</div>
+      <div class="nname">Some[+A]</div>
+      <div class="ndesc">Содержит значение <code>value: A</code>.<br><code>Some(42)</code></div>
+    </div>
+    <div class="node n-opt" id="n-none">
+      <div class="nkind">case object</div>
+      <div class="nname">None</div>
+      <div class="ndesc">Отсутствие значения.<br><code>Option.empty[A]</code> = <code>None</code></div>
+    </div>
+    <!-- Either sub -->
+    <div class="node n-either" id="n-left">
+      <div class="nkind">final case class</div>
+      <div class="nname">Left[+A, +B]</div>
+      <div class="ndesc">Левое (ошибочное) значение.<br><code>Left("error")</code></div>
+    </div>
+    <div class="node n-either" id="n-right">
+      <div class="nkind">final case class</div>
+      <div class="nname">Right[+A, +B]</div>
+      <div class="ndesc">Правое (успешное) значение.<br><code>Right(42)</code></div>
+    </div>
+    <!-- Throwable sub -->
+    <div class="node n-throw" id="n-exception">
+      <div class="nkind">class</div>
+      <div class="nname">Exception</div>
+      <div class="ndesc">Ожидаемые ошибки.<br><code>RuntimeException</code>, <code>IOException</code>, <code>IllegalArgumentException</code>…</div>
+      <div class="ntags"><span class="tag t-jvm">java.lang.Exception</span></div>
+    </div>
+    <div class="node n-throw" id="n-error">
+      <div class="nkind">class</div>
+      <div class="nname">Error</div>
+      <div class="ndesc">Критические ошибки JVM.<br><code>StackOverflowError</code>, <code>OutOfMemoryError</code>. Не перехватывай!</div>
+      <div class="ntags"><span class="tag t-jvm">java.lang.Error</span></div>
+    </div>
+  </div>
+
+  <div class="spacer" id="sp4"></div>
+  <div class="divider">конкретные реализации коллекций</div>
+
+  <!-- ░░ ROW 6 — Concrete collections ░░ -->
+  <div class="row-label">// уровень 5 · конкретные коллекции</div>
+  <div class="row">
+    <div class="node n-collsub" id="n-list">
+      <div class="nkind">sealed abstract class</div>
+      <div class="nname">List[+A]</div>
+      <div class="ndesc">
+        Односвязный список. <code>::</code> (cons) / <code>Nil</code>.<br>
+        O(1) prepend, O(n) random access.<br>
+        Pattern: <code>case head :: tail => …</code>
+      </div>
+      <div class="ntags"><span class="tag t-sealed">sealed</span><span class="tag t-ro">immutable</span></div>
+    </div>
+    <div class="node n-collsub" id="n-vector">
+      <div class="nkind">final class</div>
+      <div class="nname">Vector[+A]</div>
+      <div class="ndesc">
+        Индексированная последовательность.<br>
+        O(log₃₂ n) для доступа и обновления.<br>
+        Предпочтителен для произвольного доступа.
+      </div>
+      <div class="ntags"><span class="tag t-ro">immutable</span></div>
+    </div>
+    <div class="node n-collsub" id="n-lazylist">
+      <div class="nkind">sealed abstract class · Scala 3</div>
+      <div class="nname">LazyList[+A]</div>
+      <div class="ndesc">
+        Ленивый список — вычисляется по требованию.<br>
+        Заменяет <code>Stream</code> из Scala 2.<br>
+        <code>LazyList.iterate(0)(_ + 1)</code> — бесконечный
+      </div>
+      <div class="ntags"><span class="tag t-s3">replaces Stream</span></div>
+    </div>
+    <div class="node n-collsub" id="n-arraybuf">
+      <div class="nkind">final class · mutable</div>
+      <div class="nname">ArrayBuffer[A]</div>
+      <div class="ndesc">
+        Мутабельный массив с изменяемым размером.<br>
+        O(1) амортизированное добавление.<br>
+        <code>scala.collection.mutable</code>
+      </div>
+      <div class="ntags"><span class="tag t-mut">mutable</span></div>
+    </div>
+    <div class="node n-collsub" id="n-hashset">
+      <div class="nkind">final class</div>
+      <div class="nname">HashSet[A]</div>
+      <div class="ndesc">Set на хэш-таблице. O(1) lookup.<br>Порядок не гарантирован.</div>
+      <div class="ntags"><span class="tag t-ro">immutable</span></div>
+    </div>
+    <div class="node n-collsub" id="n-treeset">
+      <div class="nkind">final class</div>
+      <div class="nname">TreeSet[A]</div>
+      <div class="ndesc">Отсортированный Set (red-black дерево).<br>O(log n) операции. Требует <code>Ordering[A]</code>.</div>
+      <div class="ntags"><span class="tag t-ro">sorted</span></div>
+    </div>
+    <div class="node n-collsub" id="n-hashmap">
+      <div class="nkind">final class</div>
+      <div class="nname">HashMap[K, +V]</div>
+      <div class="ndesc">Map на хэш-таблице. O(1) lookup.<br>Реализован через HAMT.</div>
+      <div class="ntags"><span class="tag t-ro">immutable</span></div>
+    </div>
+    <div class="node n-collsub" id="n-sortedmap">
+      <div class="nkind">trait</div>
+      <div class="nname">SortedMap[K, +V]</div>
+      <div class="ndesc">Отсортированная Map.<br>Impl: <code>TreeMap[K,V]</code>. Требует <code>Ordering[K]</code>.</div>
+      <div class="ntags"><span class="tag t-ro">sorted</span></div>
+    </div>
+    <div class="node n-prod" id="n-tuple">
+      <div class="nkind">class / type · Scala 3</div>
+      <div class="nname">Tuple</div>
+      <div class="ndesc">
+        Гетерогенные кортежи в Scala 3.<br>
+        <code>(1, "hi", true) : (Int, String, Boolean)</code><br>
+        <code>EmptyTuple</code> + <code>*:</code> (cons) тип.<br>
+        Неограниченная арность. Интроспекция через match types.
+      </div>
+      <div class="ntags"><span class="tag t-s3">Scala 3</span><span class="tag t-sealed">sealed</span></div>
+    </div>
+  </div>
+
+  <div class="spacer-sm"></div>
+
+  <!-- ░░ SCALA 3 FEATURES PANEL ░░ -->
+  <div class="divider">специальные типы и возможности Scala 3</div>
+  <div class="scala3-features">
+    <h3>// Scala 3 — новые конструкции системы типов</h3>
+    <div class="features-grid">
+      <div class="feat">
+        <div class="feat-name">Union Types  A | B</div>
+        <div class="feat-desc">
+          Значение является либо <code>A</code>, либо <code>B</code>.<br>
+          <code>def f(x: Int | String): String</code><br>
+          Pattern matching работает исчерпывающе.<br>
+          Заменяет <code>Either</code> в простых случаях.
+        </div>
+      </div>
+      <div class="feat">
+        <div class="feat-name">Intersection Types  A &amp; B</div>
+        <div class="feat-desc">
+          Значение является одновременно <code>A</code> <em>и</em> <code>B</code>.<br>
+          <code>def f(x: Resizable &amp; Drawable): Unit</code><br>
+          Заменяет составные трейты в большинстве мест.<br>
+          Коммутативен: <code>A &amp; B =:= B &amp; A</code>.
+        </div>
+      </div>
+      <div class="feat">
+        <div class="feat-name">Opaque Type Aliases</div>
+        <div class="feat-desc">
+          <code>opaque type Meters = Double</code><br>
+          Нулевой overhead. Снаружи — непрозрачный тип.<br>
+          Внутри scope — это <code>Double</code>. Замена value class.<br>
+          <code>extension</code> добавляет методы.
+        </div>
+      </div>
+      <div class="feat">
+        <div class="feat-name">Type Lambdas</div>
+        <div class="feat-desc">
+          <code>[X] =&gt;&gt; F[X]</code><br>
+          Лямбда на уровне типов. Kind-полиморфизм.<br>
+          <code>type MyFunctor = [A] =&gt;&gt; Either[String, A]</code><br>
+          Заменяет type projection <code>({type T[A] = F[A]})#T</code>.
+        </div>
+      </div>
+      <div class="feat">
+        <div class="feat-name">Singleton Types</div>
+        <div class="feat-desc">
+          <code>val x: 42 = 42</code> — тип литерала.<br>
+          <code>"hello".type</code> — синглтон конкретного значения.<br>
+          Основа для type-level computation.<br>
+          <code>42 &lt;:&lt; Int</code>, но не наоборот.
+        </div>
+      </div>
+      <div class="feat">
+        <div class="feat-name">Match Types</div>
+        <div class="feat-desc">
+          Вычисление типов через pattern matching:<br>
+          <code>type Elem[X] = X match</code><br>
+          <code>  case Seq[a] =&gt; a</code><br>
+          <code>  case String =&gt; Char</code><br>
+          Позволяет зависимые типы на уровне типов.
+        </div>
+      </div>
+      <div class="feat">
+        <div class="feat-name">Context Types (given / using)</div>
+        <div class="feat-desc">
+          <code>given Ordering[Int] = ...</code><br>
+          <code>def sort[A](xs: List[A])(using Ordering[A])</code><br>
+          Замена <code>implicit</code> в Scala 2.<br>
+          Основа type class pattern. <code>CanEqual[-L,-R]</code> управляет <code>==</code>.
+        </div>
+      </div>
+      <div class="feat">
+        <div class="feat-name">Dependent Function Types</div>
+        <div class="feat-desc">
+          <code>(x: A) =&gt; x.Result</code><br>
+          Тип результата зависит от значения аргумента.<br>
+          Настоящие зависимые типы в системе типов.<br>
+          <code>def f: (e: Entry) =&gt; e.type</code>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="spacer" id="sp5"></div>
+  <div class="divider">нижний тип — подтип абсолютно всех типов</div>
+
+  <!-- ░░ NOTHING ░░ -->
+  <div class="row-label">// дно иерархии · bottom type</div>
+  <div class="row">
+    <div class="node n-nothing xwide center" id="n-nothing">
+      <div class="nkind">final abstract class · bottom type</div>
+      <div class="nname">Nothing</div>
+      <div class="ndesc" style="text-align:center; color: #a09090;">
+        Подтип <strong style="color:#ef4444">каждого</strong> типа — включая <code>AnyVal</code>, <code>AnyRef</code>, <code>Null</code>, пользовательские.<br>
+        Экземпляры создать <strong>невозможно</strong> — тип без населения.<br><br>
+        <strong style="color:#ef4444">Применения:</strong><br>
+        <code>throw new Exception()</code> — тип выражения <code>Nothing</code><br>
+        <code>def ??? : Nothing = throw new NotImplementedError()</code><br>
+        <code>def fail(msg: String): Nothing = throw RuntimeException(msg)</code><br>
+        <code>@tailrec def loop(): Nothing = loop()</code> — бесконечный цикл<br><br>
+        В ковариантных позициях: <code>List[Nothing] &lt;: List[A]</code> для любого <code>A</code>.<br>
+        <code>Nil</code> имеет тип <code>List[Nothing]</code>.
+      </div>
+      <div class="ntags" style="justify-content:center; margin-top:12px;">
+        <span class="tag t-bot">bottom type</span>
+        <span class="tag t-bot">no instances</span>
+        <span class="tag t-bot">never returns</span>
+        <span class="tag t-bot">subtype of ALL</span>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /tree -->
+
+<footer>
+  Scala 3 Type Hierarchy &nbsp;·&nbsp;
+  <span style="color:var(--c-any)">Any</span> →
+  <span style="color:var(--c-match)">Matchable</span> →
+  <span style="color:var(--c-anyval)">AnyVal</span> /
+  <span style="color:var(--c-anyref)">AnyRef</span> →
+  <span style="color:var(--c-coll)">Collections</span> /
+  <span style="color:var(--c-throw)">Throwable</span> →
+  <span style="color:var(--c-nothing)">Nothing</span>
+  &nbsp;·&nbsp; EPFL · Lightbend · Scala Center
+</footer>
+
+</div><!-- /page-container -->
+
+<!-- tooltip element -->
+<div id="conn-tooltip"></div>
+
+<script>
+// ──────────────────────────────────────────────────
+// SVG connector arrows  +  click-to-highlight
+// ──────────────────────────────────────────────────
+const connections = [
+  // Any → Matchable
+  { from: 'n-any',       to: 'n-matchable', marker: 'arr-any',     stroke: '#ff6b35', w: 2.5, dash: '' },
+  // Matchable → AnyVal / AnyRef
+  { from: 'n-matchable', to: 'n-anyval',    marker: 'arr-match',   stroke: '#06d6a0', w: 2,   dash: '' },
+  { from: 'n-matchable', to: 'n-anyref',    marker: 'arr-match',   stroke: '#06d6a0', w: 2,   dash: '' },
+  // AnyVal → value types
+  { from: 'n-anyval', to: 'n-int',     marker: 'arr-anyval', stroke: '#38bdf8', w: 1.5, dash: '' },
+  { from: 'n-anyval', to: 'n-long',    marker: 'arr-anyval', stroke: '#38bdf8', w: 1.5, dash: '' },
+  { from: 'n-anyval', to: 'n-short',   marker: 'arr-anyval', stroke: '#38bdf8', w: 1.5, dash: '' },
+  { from: 'n-anyval', to: 'n-byte',    marker: 'arr-anyval', stroke: '#38bdf8', w: 1.5, dash: '' },
+  { from: 'n-anyval', to: 'n-float',   marker: 'arr-anyval', stroke: '#38bdf8', w: 1.5, dash: '' },
+  { from: 'n-anyval', to: 'n-double',  marker: 'arr-anyval', stroke: '#38bdf8', w: 1.5, dash: '' },
+  { from: 'n-anyval', to: 'n-char',    marker: 'arr-anyval', stroke: '#38bdf8', w: 1.5, dash: '' },
+  { from: 'n-anyval', to: 'n-boolean', marker: 'arr-anyval', stroke: '#38bdf8', w: 1.5, dash: '' },
+  { from: 'n-anyval', to: 'n-unit',    marker: 'arr-anyval', stroke: '#38bdf8', w: 1.5, dash: '' },
+  // AnyRef → reference types
+  { from: 'n-anyref', to: 'n-string',    marker: 'arr-anyref', stroke: '#818cf8', w: 1.5, dash: '' },
+  { from: 'n-anyref', to: 'n-product',   marker: 'arr-anyref', stroke: '#818cf8', w: 1.5, dash: '' },
+  { from: 'n-anyref', to: 'n-enum3',     marker: 'arr-anyref', stroke: '#818cf8', w: 1.5, dash: '' },
+  { from: 'n-anyref', to: 'n-iterable',  marker: 'arr-anyref', stroke: '#818cf8', w: 1.5, dash: '' },
+  { from: 'n-anyref', to: 'n-option',    marker: 'arr-anyref', stroke: '#818cf8', w: 1.5, dash: '' },
+  { from: 'n-anyref', to: 'n-either',    marker: 'arr-anyref', stroke: '#818cf8', w: 1.5, dash: '' },
+  { from: 'n-anyref', to: 'n-throwable', marker: 'arr-anyref', stroke: '#818cf8', w: 1.5, dash: '' },
+  { from: 'n-anyref', to: 'n-null',      marker: 'arr-anyref', stroke: '#818cf8', w: 1.5, dash: '' },
+  // Iterable → Seq / Set / Map
+  { from: 'n-iterable', to: 'n-seq', marker: 'arr-coll', stroke: '#e879f9', w: 1.5, dash: '' },
+  { from: 'n-iterable', to: 'n-set', marker: 'arr-coll', stroke: '#e879f9', w: 1.5, dash: '' },
+  { from: 'n-iterable', to: 'n-map', marker: 'arr-coll', stroke: '#e879f9', w: 1.5, dash: '' },
+  // Option → Some / None
+  { from: 'n-option', to: 'n-some', marker: 'arr-opt', stroke: '#f9a8d4', w: 1.5, dash: '' },
+  { from: 'n-option', to: 'n-none', marker: 'arr-opt', stroke: '#f9a8d4', w: 1.5, dash: '' },
+  // Either → Left / Right
+  { from: 'n-either', to: 'n-left',  marker: 'arr-either', stroke: '#fb7185', w: 1.5, dash: '' },
+  { from: 'n-either', to: 'n-right', marker: 'arr-either', stroke: '#fb7185', w: 1.5, dash: '' },
+  // Throwable → Exception / Error
+  { from: 'n-throwable', to: 'n-exception', marker: 'arr-throw', stroke: '#f87171', w: 1.5, dash: '' },
+  { from: 'n-throwable', to: 'n-error',     marker: 'arr-throw', stroke: '#f87171', w: 1.5, dash: '' },
+  // Seq → concrete
+  { from: 'n-seq', to: 'n-list',      marker: 'arr-collsub', stroke: '#d946ef', w: 1.5, dash: '' },
+  { from: 'n-seq', to: 'n-vector',    marker: 'arr-collsub', stroke: '#d946ef', w: 1.5, dash: '' },
+  { from: 'n-seq', to: 'n-lazylist',  marker: 'arr-collsub', stroke: '#d946ef', w: 1.5, dash: '' },
+  { from: 'n-seq', to: 'n-arraybuf',  marker: 'arr-collsub', stroke: '#d946ef', w: 1.5, dash: '' },
+  // Set → concrete
+  { from: 'n-set', to: 'n-hashset', marker: 'arr-collsub', stroke: '#d946ef', w: 1.5, dash: '' },
+  { from: 'n-set', to: 'n-treeset', marker: 'arr-collsub', stroke: '#d946ef', w: 1.5, dash: '' },
+  // Map → concrete
+  { from: 'n-map', to: 'n-hashmap',   marker: 'arr-collsub', stroke: '#d946ef', w: 1.5, dash: '' },
+  { from: 'n-map', to: 'n-sortedmap', marker: 'arr-collsub', stroke: '#d946ef', w: 1.5, dash: '' },
+  // Product → Tuple
+  { from: 'n-product', to: 'n-tuple', marker: 'arr-prod', stroke: '#a78bfa', w: 1.5, dash: '' },
+  // Nothing ← All (dashed "is subtype of" arrows from Nothing upward for illustrative purposes)
+  { from: 'n-nothing', to: 'n-any',    marker: 'arr-nothing', stroke: '#ef4444', w: 1, dash: '5,4', opacity: 0.35 },
+  { from: 'n-nothing', to: 'n-anyval', marker: 'arr-nothing', stroke: '#ef4444', w: 1, dash: '4,4', opacity: 0.35 },
+  { from: 'n-nothing', to: 'n-anyref', marker: 'arr-nothing', stroke: '#ef4444', w: 1, dash: '4,4', opacity: 0.35 },
+  { from: 'n-nothing', to: 'n-null',   marker: 'arr-null',    stroke: '#64748b', w: 1, dash: '4,4', opacity: 0.5 },
+];
+
+// ── helpers ───────────────────────────────────────
+function getPos(el) {
+  const r = el.getBoundingClientRect();
+  const c = document.getElementById('page-container').getBoundingClientRect();
+  return {
+    t:  r.top  - c.top,
+    b:  r.top  - c.top  + r.height,
+    cx: r.left - c.left + r.width  / 2,
+    cy: r.top  - c.top  + r.height / 2,
+  };
+}
+
+function bezier(x1, y1, x2, y2) {
+  const dy = Math.abs(y2 - y1);
+  const cp = dy * 0.55;
+  if (y2 > y1) {
+    return `M ${x1},${y1} C ${x1},${y1+cp} ${x2},${y2-cp} ${x2},${y2}`;
+  } else {
+    return `M ${x1},${y1} C ${x1},${y1-cp} ${x2},${y2+cp} ${x2},${y2}`;
+  }
+}
+
+// ── selection state ───────────────────────────────
+let activeVisPath = null;   // visible path currently highlighted
+let activeNodes   = [];     // [fromEl, toEl] currently highlighted
+
+function clearSelection() {
+  if (activeVisPath) {
+    const conn = activeVisPath._conn;
+    activeVisPath.setAttribute('stroke-width', conn.w);
+    activeVisPath.setAttribute('opacity', conn.opacity ?? 0.65);
+    activeVisPath.setAttribute('filter', '');
+    activeVisPath = null;
+  }
+  activeNodes.forEach(el => el.classList.remove('node-active'));
+  activeNodes = [];
+  const tip = document.getElementById('conn-tooltip');
+  tip.style.opacity = '0';
+}
+
+function selectPath(visPath, conn, clientX, clientY) {
+  clearSelection();
+
+  // brighten the visible path
+  visPath.setAttribute('stroke-width', (conn.w * 2.8));
+  visPath.setAttribute('opacity', '1');
+  activeVisPath = visPath;
+
+  // highlight from / to nodes
+  const fromEl = document.getElementById(conn.from);
+  const toEl   = document.getElementById(conn.to);
+  [fromEl, toEl].forEach(el => { if (el) el.classList.add('node-active'); });
+  activeNodes = [fromEl, toEl].filter(Boolean);
+
+  // tooltip
+  const fromName = (fromEl?.querySelector('.nname')?.textContent || conn.from).trim();
+  const toName   = (toEl  ?.querySelector('.nname')?.textContent || conn.to  ).trim();
+  const tip = document.getElementById('conn-tooltip');
+  tip.innerHTML = `<span style="opacity:.6">parent</span> <strong style="color:${conn.stroke}">${fromName}</strong> <span style="opacity:.6">→ extends →</span> <strong style="color:${conn.stroke}">${toName}</strong>`;
+  tip.style.left = (clientX + 14) + 'px';
+  tip.style.top  = (clientY - 14) + 'px';
+  tip.style.borderColor = conn.stroke + '88';
+  tip.style.opacity = '1';
+}
+
+// ── draw ──────────────────────────────────────────
+function drawConnections() {
+  const svg = document.getElementById('svg-overlay');
+  svg.querySelectorAll('path.conn, path.conn-hit').forEach(p => p.remove());
+
+  const pageH = document.getElementById('page-container').offsetHeight;
+  svg.setAttribute('height', pageH);
+
+  connections.forEach(conn => {
+    const fromEl = document.getElementById(conn.from);
+    const toEl   = document.getElementById(conn.to);
+    if (!fromEl || !toEl) return;
+
+    const f = getPos(fromEl);
+    const t = getPos(toEl);
+
+    let x1, y1, x2, y2;
+    if (t.t > f.b - 5) {
+      x1 = f.cx; y1 = f.b;
+      x2 = t.cx; y2 = t.t;
+    } else if (t.b < f.t + 5) {
+      x1 = f.cx; y1 = f.t;
+      x2 = t.cx; y2 = t.b;
+    } else {
+      x1 = f.cx; y1 = f.b;
+      x2 = t.cx; y2 = t.t;
+    }
+    const d = bezier(x1, y1, x2, y2);
+
+    // ── visible path ──────────────────────────────
+    const vis = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    vis.setAttribute('class', 'conn');
+    vis.setAttribute('d', d);
+    vis.setAttribute('stroke', conn.stroke);
+    vis.setAttribute('stroke-width', conn.w);
+    vis.setAttribute('fill', 'none');
+    vis.setAttribute('marker-end', `url(#${conn.marker})`);
+    if (conn.dash) vis.setAttribute('stroke-dasharray', conn.dash);
+    vis.setAttribute('opacity', conn.opacity ?? 0.65);
+    vis.style.transition = 'stroke-width .15s, opacity .15s';
+    vis._conn = conn;
+    svg.appendChild(vis);
+
+    // ── invisible hit-area path (wider, transparent) ──
+    const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    hit.setAttribute('class', 'conn-hit');
+    hit.setAttribute('d', d);
+    hit.setAttribute('stroke', 'transparent');
+    hit.setAttribute('stroke-width', Math.max(conn.w + 14, 18));
+    hit.setAttribute('fill', 'none');
+    hit._vis  = vis;
+    hit._conn = conn;
+
+    hit.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (activeVisPath === vis) {
+        clearSelection();
+      } else {
+        selectPath(vis, conn, e.clientX, e.clientY);
+      }
+    });
+
+    // hover preview
+    hit.addEventListener('mouseenter', () => {
+      if (activeVisPath !== vis) {
+        vis.setAttribute('stroke-width', conn.w * 1.8);
+        vis.setAttribute('opacity', '0.9');
+      }
+    });
+    hit.addEventListener('mouseleave', () => {
+      if (activeVisPath !== vis) {
+        vis.setAttribute('stroke-width', conn.w);
+        vis.setAttribute('opacity', conn.opacity ?? 0.65);
+      }
+    });
+
+    svg.appendChild(hit);
+  });
+}
+
+// ── click outside → deselect ──────────────────────
+document.getElementById('page-container').addEventListener('click', () => {
+  clearSelection();
+});
+
+// tooltip follows mouse when active
+document.addEventListener('mousemove', (e) => {
+  const tip = document.getElementById('conn-tooltip');
+  if (tip.style.opacity === '1') {
+    tip.style.left = (e.clientX + 14) + 'px';
+    tip.style.top  = (e.clientY - 14) + 'px';
+  }
+});
+
+window.addEventListener('load', drawConnections);
+window.addEventListener('resize', () => { clearSelection(); drawConnections(); });
+
+// Small note on dashed arrows
+window.addEventListener('load', () => {
+  const label = document.createElement('div');
+  label.style.cssText = `
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .65rem; color: #4a3a3a;
+    text-align: center; margin: 8px auto 0;
+    max-width: 500px;
+  `;
+  label.innerHTML = `<span style="color:#ef4444; opacity:.5">— — →</span> пунктирные красные стрелки = Nothing является подтипом этих типов &nbsp;·&nbsp; <span style="color:#504a6a">кликни на стрелку чтобы подсветить наследование</span>`;
+  document.querySelector('.tree').appendChild(label);
+});
+</script>
+</body>
+</html>
